@@ -1,0 +1,43 @@
+#!/bin/bash
+#
+# Copyright (c) 2017-present, Facebook, Inc.
+# All rights reserved.
+#
+# This source code is licensed under the BSD-style license found in the
+# LICENSE file in the root directory of this source tree. An additional grant
+# of patent rights can be found in the PATENTS file in the same directory.
+
+set -ex
+
+VERSION=${VERSION:-"$(date +%Y.%m.%d)"}
+DISTRO_ROOT=/opt/hhvm-distro-packaging
+PKGVER="$(<"$DISTRO_ROOT/PKGVER")"
+DISTRIBUTION="$(<"$DISTRO_ROOT/DISTRIBUTION")"
+BUILD_DEPS_NEW="hhvm-nightly-build-deps_${VERSION}-${PKGVER}_all.rpm"
+OUT="/var/out"
+TEMP="$(mktemp -d hhvmpkg.XXXXXXXX --tmpdir)"
+cd "$TEMP"
+
+# Environment set up
+mkdir -p $DISTRO_ROOT/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+
+# Source extraction
+cp /var/out/hhvm-nightly-$VERSION.tar.gz hhvm-nightly_$VERSION.orig.tar.gz
+cp hhvm-nightly_$VERSION.orig.tar.gz $DISTRO_ROOT/rpmbuild/SOURCES/
+tar zxf hhvm-nightly_$VERSION.orig.tar.gz
+cd hhvm-nightly-$VERSION
+cp -R $DISTRO_ROOT/rhel/ rhel/
+cp -R /opt/hhvm-packaging/skeleton/ rhel/skeleton
+
+# Build package
+cd $DISTRO_ROOT/rpmbuild/SPECS
+rpmbuild -ba hhvm.spec
+
+# Test built package
+rpm -ivvh $DISTRO_ROOT/rpmbuild/RPMS/x86_64/hhvm-${VERSION}-${PKGVER}.x86_64.rpm
+
+# Save the finished package
+cp $DISTRO_ROOT/rpmbuild/RPMS/x86_64/hhvm-${VERSION}-${PKGVER}.x86_64.rpm "$OUT"
+
+set +ex
+echo "Build tree: $TEMP"
